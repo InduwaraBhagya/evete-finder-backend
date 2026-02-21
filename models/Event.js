@@ -1,3 +1,5 @@
+// FILE: models/Event.js
+
 const mongoose = require('mongoose');
 
 const eventSchema = new mongoose.Schema(
@@ -11,9 +13,21 @@ const eventSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    // ✅ FIXED: matches exactly what Flutter app sends
     category: {
       type: String,
-      enum: ['Music', 'Sports', 'Technology', 'Art', 'Food', 'Entertainment', 'Business', 'Other'],
+      enum: [
+        'Music',
+        'Sports',
+        'Technology',
+        'Arts',          // Flutter sends 'Arts' not 'Art'
+        'Food & Drink',  // Flutter sends 'Food & Drink' not 'Food'
+        'Entertainment',
+        'Business',
+        'Health',        // was missing
+        'Education',     // was missing
+        'Other',
+      ],
       required: true,
     },
     date: {
@@ -89,6 +103,28 @@ const eventSchema = new mongoose.Schema(
         ref: 'Booking',
       },
     ],
+
+    // ── NEW: Approval workflow fields ──────────────────────────
+    // Every new event starts as 'pending'
+    // Admin approves → 'approved' → shows on events list
+    // Admin rejects → 'rejected' → organizer sees reason in My Events
+    status: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending',
+    },
+    // Admin writes rejection reason here — organizer reads it in app
+    adminNote: {
+      type: String,
+      default: '',
+    },
+    reviewedAt: {
+      type: Date,
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
   },
   { timestamps: true }
 );
