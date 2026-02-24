@@ -4,6 +4,7 @@ const express    = require('express');
 const router     = express.Router();
 const Event      = require('../models/Event');
 const Booking    = require('../models/Booking');
+const User       = require('../models/User');   // ✅ NEW: to fetch organizerName
 const { authMiddleware, organizerMiddleware } = require('../middleware/auth');
 
 // ── Cloudinary + Multer setup ─────────────────────────────────
@@ -17,7 +18,6 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// ✅ Log on startup — check your terminal when server starts
 console.log('☁️  Cloudinary config check:', {
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME  || '❌ MISSING',
   api_key:    process.env.CLOUDINARY_API_KEY     ? '✅ set' : '❌ MISSING',
@@ -38,9 +38,7 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
 });
 
-// ✅ KEY FIX: wrap upload.single() so errors return JSON, not server crash
-// Previously: upload.single('image') crashes → Flutter gets "Server Error"
-// Now: error is caught → Flutter gets specific message like "Invalid API key"
+// ✅ Wrap upload so errors return JSON instead of silent server crash
 const uploadSingle = (req, res, next) => {
   upload.single('image')(req, res, (err) => {
     if (err) {
@@ -183,8 +181,9 @@ router.get('/:id', async (req, res) => {
 });
 
 // ════════════════════════════════════════════════════════════
-// POST /api/events  — CREATE EVENT (with or without image)
-// ✅ Uses uploadSingle wrapper so Cloudinary errors show clearly
+// POST /api/events  — CREATE EVENT
+// ✅ FIX 1: uploadSingle wrapper catches Cloudinary errors as JSON
+// ✅ FIX 2: organizerName fetched from User model (req.user.name is undefined from JWT)
 // ════════════════════════════════════════════════════════════
 router.post('/', authMiddleware, organizerMiddleware, uploadSingle, async (req, res) => {
   try {
@@ -200,6 +199,12 @@ router.post('/', authMiddleware, organizerMiddleware, uploadSingle, async (req, 
     if (!title || !description || !category || !date || !time || !location || !price || !totalSeats) {
       return res.status(400).json({ message: 'Missing required fields', status: 400 });
     }
+
+    // ✅ FIX: req.user.name is undefined because JWT only stores id + role
+    // Fetch full user from DB to get name
+    const userDoc = await User.findById(req.user.id).select('name email');
+    const organizerName = userDoc?.name || req.user.name || req.user.email || 'Organizer';
+    console.log('👤 organizerName:', organizerName);
 
     const imageUrl = req.file ? req.file.path : '';
     console.log('☁️  Cloudinary URL:', imageUrl || 'no image');
@@ -218,13 +223,13 @@ router.post('/', authMiddleware, organizerMiddleware, uploadSingle, async (req, 
       availableSeats: parseInt(totalSeats),
       images:         imageUrl ? [imageUrl] : [],
       organizer:      req.user.id,
-      organizerName:  req.user.name,
+      organizerName,                          // ← from DB lookup
       status:         'pending',
       adminNote:      '',
     });
 
     await event.save();
-    console.log(`✅ Saved: "${event.title}" | image: ${imageUrl || 'none'} | status: pending`);
+    console.log(`✅ Saved: "${event.title}" | organizer: ${organizerName} | image: ${imageUrl || 'none'}`);
 
     res.status(201).json({
       message: 'Event submitted for admin approval.',

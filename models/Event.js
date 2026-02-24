@@ -13,19 +13,18 @@ const eventSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    // ✅ FIXED: matches exactly what Flutter app sends
     category: {
       type: String,
       enum: [
         'Music',
         'Sports',
         'Technology',
-        'Arts',          // Flutter sends 'Arts' not 'Art'
-        'Food & Drink',  // Flutter sends 'Food & Drink' not 'Food'
+        'Arts',
+        'Food & Drink',
         'Entertainment',
         'Business',
-        'Health',        // was missing
-        'Education',     // was missing
+        'Health',
+        'Education',
         'Other',
       ],
       required: true,
@@ -55,9 +54,13 @@ const eventSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    // ✅ FIXED: required: false
+    // req.user.name is undefined from JWT → was causing validation crash
+    // routes/events.js now fetches name from User model directly
     organizerName: {
       type: String,
-      required: true,
+      required: false,
+      default: '',
     },
     images: [
       {
@@ -103,17 +106,11 @@ const eventSchema = new mongoose.Schema(
         ref: 'Booking',
       },
     ],
-
-    // ── NEW: Approval workflow fields ──────────────────────────
-    // Every new event starts as 'pending'
-    // Admin approves → 'approved' → shows on events list
-    // Admin rejects → 'rejected' → organizer sees reason in My Events
     status: {
       type: String,
       enum: ['pending', 'approved', 'rejected'],
       default: 'pending',
     },
-    // Admin writes rejection reason here — organizer reads it in app
     adminNote: {
       type: String,
       default: '',
