@@ -1,10 +1,4 @@
 // FILE: routes/events.js
-// run in your backend folder:
-//   npm install cloudinary multer multer-storage-cloudinary
-// add to your .env:
-//   CLOUDINARY_CLOUD_NAME=your_cloud_name
-//   CLOUDINARY_API_KEY=your_api_key
-//   CLOUDINARY_API_SECRET=your_api_secret
 
 const express    = require('express');
 const router     = express.Router();
@@ -23,23 +17,45 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// ✅ Log on startup — check your terminal when server starts
+console.log('☁️  Cloudinary config check:', {
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME  || '❌ MISSING',
+  api_key:    process.env.CLOUDINARY_API_KEY     ? '✅ set' : '❌ MISSING',
+  api_secret: process.env.CLOUDINARY_API_SECRET  ? '✅ set' : '❌ MISSING',
+});
+
 const storage = new CloudinaryStorage({
   cloudinary,
   params: {
-    folder:           'event_finder/events',
-    allowed_formats:  ['jpg', 'jpeg', 'png', 'webp'],
-    transformation:   [{ width: 800, height: 500, crop: 'fill', quality: 'auto' }],
+    folder:          'event_finder/events',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+    transformation:  [{ width: 800, height: 500, crop: 'fill', quality: 'auto' }],
   },
 });
 
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  limits: { fileSize: 5 * 1024 * 1024 },
 });
 
+// ✅ KEY FIX: wrap upload.single() so errors return JSON, not server crash
+// Previously: upload.single('image') crashes → Flutter gets "Server Error"
+// Now: error is caught → Flutter gets specific message like "Invalid API key"
+const uploadSingle = (req, res, next) => {
+  upload.single('image')(req, res, (err) => {
+    if (err) {
+      console.error('❌ Cloudinary/Multer error:', err.message);
+      return res.status(500).json({
+        message: `Image upload failed: ${err.message}`,
+        status:  500,
+      });
+    }
+    next();
+  });
+};
+
 // ════════════════════════════════════════════════════════════
-// GET /api/events
-// PUBLIC — returns ONLY approved events
+// GET /api/events  — PUBLIC, approved only
 // ════════════════════════════════════════════════════════════
 router.get('/', async (req, res) => {
   try {
@@ -74,7 +90,7 @@ router.get('/', async (req, res) => {
 });
 
 // ════════════════════════════════════════════════════════════
-// GET /api/events/featured    ← BEFORE /:id
+// GET /api/events/featured  ← BEFORE /:id
 // ════════════════════════════════════════════════════════════
 router.get('/featured', async (req, res) => {
   try {
@@ -88,7 +104,7 @@ router.get('/featured', async (req, res) => {
 });
 
 // ════════════════════════════════════════════════════════════
-// GET /api/events/search/query    ← BEFORE /:id
+// GET /api/events/search/query  ← BEFORE /:id
 // ════════════════════════════════════════════════════════════
 router.get('/search/query', async (req, res) => {
   try {
@@ -113,8 +129,7 @@ router.get('/search/query', async (req, res) => {
 });
 
 // ════════════════════════════════════════════════════════════
-// GET /api/events/admin/all    ← BEFORE /:id
-// ADMIN — all events (pending + approved + rejected)
+// GET /api/events/admin/all  ← BEFORE /:id
 // ════════════════════════════════════════════════════════════
 router.get('/admin/all', authMiddleware, async (req, res) => {
   try {
@@ -135,8 +150,7 @@ router.get('/admin/all', authMiddleware, async (req, res) => {
 });
 
 // ════════════════════════════════════════════════════════════
-// GET /api/events/organizer/my-events    ← BEFORE /:id
-// ORGANIZER — own events (all statuses + rejection reason)
+// GET /api/events/organizer/my-events  ← BEFORE /:id
 // ════════════════════════════════════════════════════════════
 router.get('/organizer/my-events', authMiddleware, async (req, res) => {
   try {
@@ -149,7 +163,7 @@ router.get('/organizer/my-events', authMiddleware, async (req, res) => {
 });
 
 // ════════════════════════════════════════════════════════════
-// GET /api/events/:id    ← AFTER all specific routes
+// GET /api/events/:id  ← AFTER all specific routes
 // ════════════════════════════════════════════════════════════
 router.get('/:id', async (req, res) => {
   try {
@@ -169,18 +183,15 @@ router.get('/:id', async (req, res) => {
 });
 
 // ════════════════════════════════════════════════════════════
-// POST /api/events
-// ORGANIZER creates event — image uploaded to Cloudinary
-// Saved with status='pending' — admin must approve first
-//
-// upload.single('image') — multer middleware:
-//   • receives the image file from Flutter multipart request
-//   • uploads it to Cloudinary automatically
-//   • puts the Cloudinary URL in req.file.path
-//   • if no image sent → req.file is undefined (that's fine)
+// POST /api/events  — CREATE EVENT (with or without image)
+// ✅ Uses uploadSingle wrapper so Cloudinary errors show clearly
 // ════════════════════════════════════════════════════════════
-router.post('/', authMiddleware, organizerMiddleware, upload.single('image'), async (req, res) => {
+router.post('/', authMiddleware, organizerMiddleware, uploadSingle, async (req, res) => {
   try {
+    console.log('📥 POST /api/events');
+    console.log('📦 Body:', req.body);
+    console.log('🖼️  File:', req.file ? req.file.path : 'none');
+
     const {
       title, description, category, date, time,
       location, latitude, longitude, price, totalSeats,
@@ -190,14 +201,8 @@ router.post('/', authMiddleware, organizerMiddleware, upload.single('image'), as
       return res.status(400).json({ message: 'Missing required fields', status: 400 });
     }
 
-    // ✅ If image was uploaded → Cloudinary URL is in req.file.path
-    //    If no image → imageUrl is empty string (event saves fine)
     const imageUrl = req.file ? req.file.path : '';
-    if (imageUrl) {
-      console.log('🖼️  Image uploaded to Cloudinary:', imageUrl);
-    } else {
-      console.log('ℹ️  No image — event saved without image');
-    }
+    console.log('☁️  Cloudinary URL:', imageUrl || 'no image');
 
     const event = new Event({
       title,
@@ -206,21 +211,20 @@ router.post('/', authMiddleware, organizerMiddleware, upload.single('image'), as
       date:           new Date(date),
       time,
       location,
-      latitude:       parseFloat(latitude)   || 0,
-      longitude:      parseFloat(longitude)  || 0,
+      latitude:       parseFloat(latitude)  || 0,
+      longitude:      parseFloat(longitude) || 0,
       price:          parseFloat(price),
       totalSeats:     parseInt(totalSeats),
       availableSeats: parseInt(totalSeats),
-      images:         imageUrl ? [imageUrl] : [],  // ← Cloudinary URL saved here
-      organizer:      req.user.id,                 // ← from auth token
+      images:         imageUrl ? [imageUrl] : [],
+      organizer:      req.user.id,
       organizerName:  req.user.name,
-      status:         'pending',                   // ← waits for admin approval
+      status:         'pending',
       adminNote:      '',
     });
 
     await event.save();
-
-    console.log(`📋 Event: "${event.title}" | organizer: ${req.user.name} | status: pending`);
+    console.log(`✅ Saved: "${event.title}" | image: ${imageUrl || 'none'} | status: pending`);
 
     res.status(201).json({
       message: 'Event submitted for admin approval.',
@@ -229,14 +233,13 @@ router.post('/', authMiddleware, organizerMiddleware, upload.single('image'), as
       event,
     });
   } catch (error) {
-    console.error('Create event error:', error);
+    console.error('❌ Create event error:', error.message);
     res.status(500).json({ message: 'Error creating event', status: 500, error: error.message });
   }
 });
 
 // ════════════════════════════════════════════════════════════
 // PATCH /api/events/:id/approve
-// ADMIN approves → status='approved' → visible on events page
 // ════════════════════════════════════════════════════════════
 router.patch('/:id/approve', authMiddleware, async (req, res) => {
   try {
@@ -264,8 +267,6 @@ router.patch('/:id/approve', authMiddleware, async (req, res) => {
 
 // ════════════════════════════════════════════════════════════
 // PATCH /api/events/:id/reject
-// ADMIN rejects with reason → saved in adminNote
-// Organizer sees reason in My Events screen
 // ════════════════════════════════════════════════════════════
 router.patch('/:id/reject', authMiddleware, async (req, res) => {
   try {
@@ -299,7 +300,7 @@ router.patch('/:id/reject', authMiddleware, async (req, res) => {
 // ════════════════════════════════════════════════════════════
 // PUT /api/events/:id — organizer updates own event
 // ════════════════════════════════════════════════════════════
-router.put('/:id', authMiddleware, organizerMiddleware, upload.single('image'), async (req, res) => {
+router.put('/:id', authMiddleware, organizerMiddleware, uploadSingle, async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
     if (!event) return res.status(404).json({ message: 'Event not found', status: 404 });
@@ -310,10 +311,7 @@ router.put('/:id', authMiddleware, organizerMiddleware, upload.single('image'), 
 
     const { title, description, date, time, location, price, totalSeats, isFeatured } = req.body;
 
-    // If new image uploaded, use new Cloudinary URL
-    if (req.file) {
-      event.images = [req.file.path];
-    }
+    if (req.file) event.images = [req.file.path];
 
     Object.assign(event, {
       title:       title       || event.title,
@@ -324,7 +322,7 @@ router.put('/:id', authMiddleware, organizerMiddleware, upload.single('image'), 
       price:       price       !== undefined ? parseFloat(price) : event.price,
       totalSeats:  totalSeats  ? parseInt(totalSeats) : event.totalSeats,
       isFeatured:  isFeatured  !== undefined ? isFeatured : event.isFeatured,
-      status:      'pending',  // reset to pending — needs re-approval
+      status:      'pending',
       adminNote:   '',
     });
 
@@ -347,7 +345,6 @@ router.delete('/:id', authMiddleware, organizerMiddleware, async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to delete this event', status: 403 });
     }
 
-    // Delete image from Cloudinary if exists
     if (event.images && event.images.length > 0) {
       try {
         const imageUrl = event.images[0];
