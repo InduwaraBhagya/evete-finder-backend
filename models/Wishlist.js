@@ -1,5 +1,3 @@
-// FILE: models/Wishlist.js
-// No changes needed — model is correct
 
 const mongoose = require('mongoose');
 
@@ -19,7 +17,6 @@ const wishlistSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Ensure unique user-event pairs (no duplicates)
 wishlistSchema.index({ user: 1, event: 1 }, { unique: true });
 
 module.exports = mongoose.model('Wishlist', wishlistSchema);

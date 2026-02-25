@@ -1,18 +1,13 @@
-// ============================================================
+
 // FILE 1: models/Event.js
 // Complete Event schema with Cloudinary image + approval fields
-// ============================================================
+
 
 const mongoose = require('mongoose');
 const cloudinary = require('cloudinary').v2;
 const multer = require('multer');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
-// ── Cloudinary config ─────────────────────────────────────────
-// Add these to your .env file:
-//   CLOUDINARY_CLOUD_NAME=your_cloud_name
-//   CLOUDINARY_API_KEY=your_api_key
-//   CLOUDINARY_API_SECRET=your_api_secret
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key:    process.env.CLOUDINARY_API_KEY,
@@ -87,10 +82,10 @@ const Event = mongoose.model('Event', eventSchema);
 module.exports = { Event, upload };
 
 
-// ============================================================
+
 // FILE 2: routes/events.js
 // COMPLETE routes file — replace your existing one with this
-// ============================================================
+
 
 const express    = require('express');
 const router     = express.Router();
@@ -115,9 +110,8 @@ async function deleteCloudinaryImage(imageUrl) {
 }
 
 
-// ════════════════════════════════════════════════════════════════
 // PUBLIC ROUTES (no auth required)
-// ════════════════════════════════════════════════════════════════
+
 
 // GET /api/events
 // Returns ONLY approved events — pending/rejected are hidden from public
@@ -161,9 +155,6 @@ router.get('/:id', async (req, res) => {
 });
 
 
-// ════════════════════════════════════════════════════════════════
-// ORGANIZER ROUTES (auth required, organizer role)
-// ════════════════════════════════════════════════════════════════
 
 // POST /api/events (or /api/organizer/events — match AppConfig.organizerEventsEndpoint)
 // Creates event with status='pending' — uploaded image goes to Cloudinary
@@ -277,10 +268,6 @@ router.put('/:id', authMiddleware, upload.single('image'), async (req, res) => {
 });
 
 
-// ════════════════════════════════════════════════════════════════
-// ADMIN ROUTES (auth required, admin role only)
-// ════════════════════════════════════════════════════════════════
-
 // GET /api/events/admin/all
 // Returns all events regardless of status — for admin dashboard
 router.get('/admin/all', authMiddleware, async (req, res) => {
@@ -376,7 +363,7 @@ router.patch('/:id/reject', authMiddleware, async (req, res) => {
       req.params.id,
       {
         status:     'rejected',
-        adminNote:  reason.trim(),   // ← This is shown to organizer in app
+        adminNote:  reason.trim(),   
         reviewedAt: new Date(),
         reviewedBy: req.user.id,
       },
@@ -391,8 +378,6 @@ router.patch('/:id/reject', authMiddleware, async (req, res) => {
     console.log(`   Organizer: ${event.organizer?.email} will see reason in My Events`);
 
     // TODO: Send push notification to organizer here
-    // e.g. await sendNotification(event.organizer._id, 'Event rejected', reason)
-
     res.json({
       success: true,
       message: `"${event.title}" rejected. Organizer notified via app.`,

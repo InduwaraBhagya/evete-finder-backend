@@ -1,4 +1,3 @@
-// FILE: models/Event.js
 
 const mongoose = require('mongoose');
 
@@ -54,9 +53,7 @@ const eventSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
-    // ✅ FIXED: required: false
-    // req.user.name is undefined from JWT → was causing validation crash
-    // routes/events.js now fetches name from User model directly
+   
     organizerName: {
       type: String,
       required: false,

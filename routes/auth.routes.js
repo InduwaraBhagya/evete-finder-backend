@@ -177,7 +177,7 @@ router.put('/profile', authMiddleware, async (req, res) => {
   }
 });
 
-// Logout (client-side token deletion)
+// Logout 
 router.post('/logout', authMiddleware, (req, res) => {
   res.status(200).json({
     message: 'Logged out successfully',

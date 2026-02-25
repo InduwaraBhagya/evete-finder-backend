@@ -1,10 +1,3 @@
-// FILE: routes/wishlist.js
-// FIXES:
-//   1. GET: populate includes ALL event fields needed by Flutter Event.fromJson
-//   2. DELETE /:id: supports BOTH wishlistItem _id AND eventId
-//      → Flutter sometimes sends eventId, sometimes wishlistItem _id
-//   3. Added DELETE /event/:eventId route as clean alternative
-
 const express   = require('express');
 const router    = express.Router();
 const Wishlist  = require('../models/Wishlist');
@@ -13,10 +6,9 @@ const { authMiddleware } = require('../middleware/auth');
 // ── All event fields Flutter's Event.fromJson needs ──────────
 const EVENT_FIELDS = 'title description category date time location latitude longitude price totalSeats availableSeats images organizerName organizer status isFeatured rating reviewCount';
 
-// ════════════════════════════════════════════════════════════
 // GET /api/wishlist
 // Returns: { data: [ { _id: wishlistItemId, event: {...} } ] }
-// ════════════════════════════════════════════════════════════
+
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const wishlist = await Wishlist.find({ user: req.user.id })
@@ -38,11 +30,10 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════
 // POST /api/wishlist
 // Body: { eventId }
 // Returns the new wishlist item with _id so Flutter can save it
-// ════════════════════════════════════════════════════════════
+
 router.post('/', authMiddleware, async (req, res) => {
   try {
     const { eventId } = req.body;
@@ -80,12 +71,11 @@ router.post('/', authMiddleware, async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════
 // DELETE /api/wishlist/:id
 // Supports BOTH:
 //   - wishlist item _id  (preferred, from POST response)
 //   - event _id          (fallback, Flutter may send this)
-// ════════════════════════════════════════════════════════════
+
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;

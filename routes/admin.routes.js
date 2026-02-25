@@ -35,7 +35,7 @@ router.get('/dashboard/stats', authMiddleware, adminMiddleware, async (req, res)
   }
 });
 
-// Get All Users (Admin only)
+// Get All Users 
 router.get('/users/list', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const users = await User.find().select('-password');
@@ -54,7 +54,7 @@ router.get('/users/list', authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
-// Get All Events (Admin only)
+// Get All Events 
 router.get('/events/list', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const events = await Event.find().populate('organizer', 'name email');
@@ -73,7 +73,7 @@ router.get('/events/list', authMiddleware, adminMiddleware, async (req, res) => 
   }
 });
 
-// Deactivate User (Admin only)
+// Deactivate User 
 router.put('/users/:id/deactivate', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const user = await User.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
@@ -99,7 +99,7 @@ router.put('/users/:id/deactivate', authMiddleware, adminMiddleware, async (req,
   }
 });
 
-// Feature Event (Admin only)
+// Feature Event 
 router.put('/events/:id/feature', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const event = await Event.findByIdAndUpdate(req.params.id, { isFeatured: true }, { new: true });

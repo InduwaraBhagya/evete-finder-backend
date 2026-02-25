@@ -4,7 +4,7 @@ const express    = require('express');
 const router     = express.Router();
 const Event      = require('../models/Event');
 const Booking    = require('../models/Booking');
-const User       = require('../models/User');   // ✅ NEW: to fetch organizerName
+const User       = require('../models/User');   //  NEW: to fetch organizerName
 const { authMiddleware, organizerMiddleware } = require('../middleware/auth');
 
 // ── Cloudinary + Multer setup ─────────────────────────────────
@@ -38,7 +38,7 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
 });
 
-// ✅ Wrap upload so errors return JSON instead of silent server crash
+//  Wrap upload so errors return JSON instead of silent server crash
 const uploadSingle = (req, res, next) => {
   upload.single('image')(req, res, (err) => {
     if (err) {
@@ -52,9 +52,7 @@ const uploadSingle = (req, res, next) => {
   });
 };
 
-// ════════════════════════════════════════════════════════════
 // GET /api/events  — PUBLIC, approved only
-// ════════════════════════════════════════════════════════════
 router.get('/', async (req, res) => {
   try {
     const { category, sortBy, limit = 10, page = 1 } = req.query;
@@ -87,9 +85,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════
 // GET /api/events/featured  ← BEFORE /:id
-// ════════════════════════════════════════════════════════════
 router.get('/featured', async (req, res) => {
   try {
     const events = await Event.find({ isFeatured: true, isActive: true, status: 'approved' })
@@ -101,9 +97,8 @@ router.get('/featured', async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════
 // GET /api/events/search/query  ← BEFORE /:id
-// ════════════════════════════════════════════════════════════
+
 router.get('/search/query', async (req, res) => {
   try {
     const { q } = req.query;
@@ -126,9 +121,9 @@ router.get('/search/query', async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════
+
 // GET /api/events/admin/all  ← BEFORE /:id
-// ════════════════════════════════════════════════════════════
+
 router.get('/admin/all', authMiddleware, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -147,9 +142,7 @@ router.get('/admin/all', authMiddleware, async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════
 // GET /api/events/organizer/my-events  ← BEFORE /:id
-// ════════════════════════════════════════════════════════════
 router.get('/organizer/my-events', authMiddleware, async (req, res) => {
   try {
     const events = await Event.find({ organizer: req.user.id })
@@ -160,9 +153,8 @@ router.get('/organizer/my-events', authMiddleware, async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════
 // GET /api/events/:id  ← AFTER all specific routes
-// ════════════════════════════════════════════════════════════
+
 router.get('/:id', async (req, res) => {
   try {
     const event = await Event.findById(req.params.id)
@@ -180,11 +172,11 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════
+
 // POST /api/events  — CREATE EVENT
 // ✅ FIX 1: uploadSingle wrapper catches Cloudinary errors as JSON
 // ✅ FIX 2: organizerName fetched from User model (req.user.name is undefined from JWT)
-// ════════════════════════════════════════════════════════════
+
 router.post('/', authMiddleware, organizerMiddleware, uploadSingle, async (req, res) => {
   try {
     console.log('📥 POST /api/events');
@@ -243,9 +235,8 @@ router.post('/', authMiddleware, organizerMiddleware, uploadSingle, async (req, 
   }
 });
 
-// ════════════════════════════════════════════════════════════
 // PATCH /api/events/:id/approve
-// ════════════════════════════════════════════════════════════
+
 router.patch('/:id/approve', authMiddleware, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -270,9 +261,9 @@ router.patch('/:id/approve', authMiddleware, async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════
+
 // PATCH /api/events/:id/reject
-// ════════════════════════════════════════════════════════════
+
 router.patch('/:id/reject', authMiddleware, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -302,9 +293,9 @@ router.patch('/:id/reject', authMiddleware, async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════
+
 // PUT /api/events/:id — organizer updates own event
-// ════════════════════════════════════════════════════════════
+
 router.put('/:id', authMiddleware, organizerMiddleware, uploadSingle, async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
