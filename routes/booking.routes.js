@@ -65,12 +65,17 @@ router.get('/:id', authMiddleware, async (req, res) => {
 // Create Booking
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { eventId, numberOfSeats } = req.body;
+    const { eventId } = req.body;
+    // coerce numberOfSeats to an integer in case the client sent a string
+    let numberOfSeats = req.body.numberOfSeats;
+    if (typeof numberOfSeats === 'string') {
+      numberOfSeats = parseInt(numberOfSeats, 10);
+    }
 
     // Validation
-    if (!eventId || !numberOfSeats || numberOfSeats < 1) {
+    if (!eventId || !numberOfSeats || numberOfSeats < 1 || isNaN(numberOfSeats)) {
       return res.status(400).json({
-        message: 'Event ID and number of seats are required',
+        message: 'Event ID and a valid number of seats are required',
         status: 400,
       });
     }
